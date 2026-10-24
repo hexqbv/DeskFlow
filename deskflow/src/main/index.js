@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { loadTasks, saveTasks, addTask, toggleTask, deleteTask, getStorageInfo } from './taskStore'
 
 function createWindow() {
   // Create the browser window.
@@ -13,7 +14,8 @@ function createWindow() {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      contextIsolation: true,
+      sandbox: true
     }
   })
 
@@ -40,17 +42,41 @@ function createWindow() {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.deskflow')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  // Task Management IPC Handlers
+  ipcMain.handle('tasks:get', async () => {
+    return await loadTasks()
+  })
+
+  ipcMain.handle('tasks:add', async (_, title) => {
+    return await addTask(title)
+  })
+
+  ipcMain.handle('tasks:toggle', async (_, id) => {
+    return await toggleTask(id)
+  })
+
+  ipcMain.handle('tasks:delete', async (_, id) => {
+    return await deleteTask(id)
+  })
+
+  ipcMain.handle('tasks:save', async (_, tasks) => {
+    return await saveTasks(tasks)
+  })
+
+  ipcMain.handle('tasks:getStorageInfo', () => {
+    return getStorageInfo()
+  })
 
   createWindow()
 
@@ -69,6 +95,3 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

@@ -1,34 +1,242 @@
-import Versions from './components/Versions'
-import electronLogo from './assets/electron.svg'
+import { useState, useEffect } from 'react'
+import Sidebar from './components/Sidebar'
+import Header from './components/Header'
+import FocusTimerPreview from './components/FocusTimerPreview'
+import DailyProgress from './components/DailyProgress'
+import TaskOverview from './components/TaskOverview'
 
-function App() {
-  const ipcHandle = () => window.electron.ipcRenderer.send('ping')
+const LOCAL_STORAGE_KEY = 'deskflow_tasks_fallback'
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('overview')
+  const [tasks, setTasks] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  // Load tasks on mount
+  useEffect(() => {
+    let isMounted = true
+
+    const loadInitialTasks = async () => {
+      try {
+        if (window.api && typeof window.api.getTasks === 'function') {
+          const stored = await window.api.getTasks()
+          if (isMounted) {
+            setTasks(Array.isArray(stored) ? stored : [])
+          }
+        } else {
+          await Promise.resolve()
+          const cached = localStorage.getItem(LOCAL_STORAGE_KEY)
+          if (cached) {
+            if (isMounted) setTasks(JSON.parse(cached))
+          } else {
+            const starterTasks = [
+              {
+                id: 'task_starter_1',
+                title: 'Explore DeskFlow workspace dashboard',
+                completed: true,
+                createdAt: new Date().toISOString(),
+                priority: 'high',
+                tag: 'Milestone 1'
+              },
+              {
+                id: 'task_starter_2',
+                title: 'Try checking off or adding a new task',
+                completed: false,
+                createdAt: new Date().toISOString(),
+                priority: 'high',
+                tag: 'Milestone 2'
+              }
+            ]
+            if (isMounted) {
+              setTasks(starterTasks)
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(starterTasks))
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load tasks:', err)
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadInitialTasks()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Add Task
+  const handleAddTask = async (title) => {
+    if (!title || !title.trim()) return
+
+    try {
+      if (window.api && typeof window.api.addTask === 'function') {
+        const updated = await window.api.addTask(title.trim())
+        setTasks(updated)
+      } else {
+        const newTask = {
+          id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          title: title.trim(),
+          completed: false,
+          createdAt: new Date().toISOString(),
+          priority: 'medium',
+          tag: 'Task'
+        }
+        const updated = [newTask, ...tasks]
+        setTasks(updated)
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
+      }
+    } catch (err) {
+      console.error('Failed to add task:', err)
+    }
+  }
+
+  // Toggle Task Completion
+  const handleToggleTask = async (id) => {
+    try {
+      if (window.api && typeof window.api.toggleTask === 'function') {
+        const updated = await window.api.toggleTask(id)
+        setTasks(updated)
+      } else {
+        const updated = tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+        setTasks(updated)
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
+      }
+    } catch (err) {
+      console.error('Failed to toggle task:', err)
+    }
+  }
+
+  // Delete Task
+  const handleDeleteTask = async (id) => {
+    try {
+      if (window.api && typeof window.api.deleteTask === 'function') {
+        const updated = await window.api.deleteTask(id)
+        setTasks(updated)
+      } else {
+        const updated = tasks.filter((t) => t.id !== id)
+        setTasks(updated)
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
+      }
+    } catch (err) {
+      console.error('Failed to delete task:', err)
+    }
+  }
+
+  const pendingCount = tasks.filter((t) => !t.completed).length
 
   return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-      </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
+    <div className="app-container">
+      <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} pendingTasksCount={pendingCount} />
+
+      <main className="main-wrapper">
+        <div className="main-content">
+          <Header />
+
+          {activeTab === 'overview' && (
+            <div className="dashboard-grid">
+              <div className="column-left">
+                <FocusTimerPreview />
+                <DailyProgress tasks={tasks} />
+              </div>
+
+              <div className="column-right">
+                <TaskOverview
+                  tasks={tasks}
+                  loading={loading}
+                  onAddTask={handleAddTask}
+                  onToggleTask={handleToggleTask}
+                  onDeleteTask={handleDeleteTask}
+                />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'tasks' && (
+            <div style={{ maxWidth: 880, width: '100%', margin: '0 auto' }}>
+              <TaskOverview
+                tasks={tasks}
+                loading={loading}
+                onAddTask={handleAddTask}
+                onToggleTask={handleToggleTask}
+                onDeleteTask={handleDeleteTask}
+              />
+            </div>
+          )}
+
+          {activeTab !== 'overview' && activeTab !== 'tasks' && (
+            <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: 'var(--accent-primary-soft)',
+                  color: 'var(--accent-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px'
+                }}
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <h2
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBottom: 8
+                }}
+              >
+                {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
+              </h2>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                  maxWidth: 420,
+                  margin: '0 auto 20px'
+                }}
+              >
+                This section is part of upcoming milestones. You can manage tasks in the Overview or
+                Tasks tab.
+              </p>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{
+                  maxWidth: 160,
+                  margin: '0 auto',
+                  background: 'var(--accent-primary)',
+                  color: '#fff',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setActiveTab('overview')}
+              >
+                Back to Overview
+              </button>
+            </div>
+          )}
         </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
-      </div>
-      <Versions></Versions>
-    </>
+      </main>
+    </div>
   )
 }
-
-export default App
