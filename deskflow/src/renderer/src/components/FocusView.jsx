@@ -84,4 +84,3 @@ export default function FocusView({ timer, tasks = [], onToggleTask = () => {} }
     </div>
   )
 }
-

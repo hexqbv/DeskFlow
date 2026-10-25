@@ -3,7 +3,8 @@ export default function Sidebar({
   activeTab = 'overview',
   onSelectTab = () => {},
   pendingTasksCount = 0,
-  focusBadge = '25m'
+  focusBadge = '25m',
+  notesCount = 0
 }) {
   const navItems = [
     {
@@ -68,7 +69,7 @@ export default function Sidebar({
     {
       id: 'notes',
       label: 'Notes',
-      badge: null,
+      badge: notesCount > 0 ? String(notesCount) : null,
       icon: (
         <svg
           className="nav-icon"

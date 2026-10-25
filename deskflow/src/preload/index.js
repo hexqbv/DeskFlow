@@ -10,5 +10,12 @@ contextBridge.exposeInMainWorld('api', {
   deleteTask: (id) => ipcRenderer.invoke('tasks:delete', id),
   saveTasks: (tasks) => ipcRenderer.invoke('tasks:save', tasks),
   getStorageInfo: () => ipcRenderer.invoke('tasks:getStorageInfo'),
-  showNotification: (options) => ipcRenderer.invoke('notify:show', options)
+  showNotification: (options) => ipcRenderer.invoke('notify:show', options),
+  // Notes APIs
+  getNotes: () => ipcRenderer.invoke('notes:get'),
+  createNote: (data) => ipcRenderer.invoke('notes:create', data),
+  updateNote: (data) => ipcRenderer.invoke('notes:update', data),
+  deleteNote: (id) => ipcRenderer.invoke('notes:delete', id),
+  saveNotes: (notes) => ipcRenderer.invoke('notes:save', notes),
+  exportNote: (note) => ipcRenderer.invoke('notes:export', note)
 })

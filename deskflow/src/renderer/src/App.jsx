@@ -1,28 +1,36 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import FocusTimerPreview from './components/FocusTimerPreview'
 import DailyProgress from './components/DailyProgress'
 import TaskOverview from './components/TaskOverview'
 import FocusView from './components/FocusView'
+import NotesView from './components/NotesView'
 import { usePomodoro } from './hooks/usePomodoro'
 
-const LOCAL_STORAGE_KEY = 'deskflow_tasks_fallback'
+const LOCAL_STORAGE_TASKS_KEY = 'deskflow_tasks_fallback'
+const LOCAL_STORAGE_NOTES_KEY = 'deskflow_notes_fallback'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('overview')
   const [tasks, setTasks] = useState([])
+  const [notes, setNotes] = useState([])
+  const [activeNoteId, setActiveNoteId] = useState(null)
   const [loading, setLoading] = useState(true)
 
   // Initialize shared Pomodoro timer
   const timer = usePomodoro()
 
-  // Load tasks on mount
+  // Ref to hold pending note save debounce
+  const noteDebounceRef = useRef(null)
+
+  // Load tasks & notes on mount
   useEffect(() => {
     let isMounted = true
 
-    const loadInitialTasks = async () => {
+    const loadInitialData = async () => {
       try {
+        // 1. Load tasks
         if (window.api && typeof window.api.getTasks === 'function') {
           const stored = await window.api.getTasks()
           if (isMounted) {
@@ -30,7 +38,7 @@ export default function App() {
           }
         } else {
           await Promise.resolve()
-          const cached = localStorage.getItem(LOCAL_STORAGE_KEY)
+          const cached = localStorage.getItem(LOCAL_STORAGE_TASKS_KEY)
           if (cached) {
             if (isMounted) setTasks(JSON.parse(cached))
           } else {
@@ -54,12 +62,33 @@ export default function App() {
             ]
             if (isMounted) {
               setTasks(starterTasks)
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(starterTasks))
+              localStorage.setItem(LOCAL_STORAGE_TASKS_KEY, JSON.stringify(starterTasks))
+            }
+          }
+        }
+
+        // 2. Load notes
+        if (window.api && typeof window.api.getNotes === 'function') {
+          const storedNotes = await window.api.getNotes()
+          if (isMounted && Array.isArray(storedNotes)) {
+            setNotes(storedNotes)
+            if (storedNotes.length > 0) {
+              setActiveNoteId(storedNotes[0].id)
+            }
+          }
+        } else {
+          await Promise.resolve()
+          const cachedNotes = localStorage.getItem(LOCAL_STORAGE_NOTES_KEY)
+          if (cachedNotes) {
+            const parsed = JSON.parse(cachedNotes)
+            if (isMounted) {
+              setNotes(parsed)
+              if (parsed.length > 0) setActiveNoteId(parsed[0].id)
             }
           }
         }
       } catch (err) {
-        console.error('Failed to load tasks:', err)
+        console.error('Failed to load initial data:', err)
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -67,14 +96,14 @@ export default function App() {
       }
     }
 
-    loadInitialTasks()
+    loadInitialData()
 
     return () => {
       isMounted = false
     }
   }, [])
 
-  // Add Task
+  // ================= TASK HANDLERS =================
   const handleAddTask = async (title) => {
     if (!title || !title.trim()) return
 
@@ -93,14 +122,13 @@ export default function App() {
         }
         const updated = [newTask, ...tasks]
         setTasks(updated)
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
+        localStorage.setItem(LOCAL_STORAGE_TASKS_KEY, JSON.stringify(updated))
       }
     } catch (err) {
       console.error('Failed to add task:', err)
     }
   }
 
-  // Toggle Task Completion
   const handleToggleTask = async (id) => {
     try {
       if (window.api && typeof window.api.toggleTask === 'function') {
@@ -109,14 +137,13 @@ export default function App() {
       } else {
         const updated = tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
         setTasks(updated)
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
+        localStorage.setItem(LOCAL_STORAGE_TASKS_KEY, JSON.stringify(updated))
       }
     } catch (err) {
       console.error('Failed to toggle task:', err)
     }
   }
 
-  // Delete Task
   const handleDeleteTask = async (id) => {
     try {
       if (window.api && typeof window.api.deleteTask === 'function') {
@@ -125,16 +152,115 @@ export default function App() {
       } else {
         const updated = tasks.filter((t) => t.id !== id)
         setTasks(updated)
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
+        localStorage.setItem(LOCAL_STORAGE_TASKS_KEY, JSON.stringify(updated))
       }
     } catch (err) {
       console.error('Failed to delete task:', err)
     }
   }
 
+  // ================= NOTE HANDLERS =================
+  const handleCreateNote = async () => {
+    try {
+      if (window.api && typeof window.api.createNote === 'function') {
+        const res = await window.api.createNote({ title: 'Untitled Note', content: '' })
+        if (res && res.notes) {
+          setNotes(res.notes)
+          setActiveNoteId(res.newNote.id)
+        }
+      } else {
+        const newNote = {
+          id: `note_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          title: 'Untitled Note',
+          content: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        const updated = [newNote, ...notes]
+        setNotes(updated)
+        setActiveNoteId(newNote.id)
+        localStorage.setItem(LOCAL_STORAGE_NOTES_KEY, JSON.stringify(updated))
+      }
+    } catch (err) {
+      console.error('Failed to create note:', err)
+    }
+  }
+
+  const handleUpdateNote = useCallback((update) => {
+    if (!update || !update.id) return
+
+    // Update state immediately for instant feedback
+    setNotes((prevNotes) =>
+      prevNotes.map((note) =>
+        note.id === update.id
+          ? {
+              ...note,
+              title: typeof update.title === 'string' ? update.title : note.title,
+              content: typeof update.content === 'string' ? update.content : note.content,
+              updatedAt: new Date().toISOString()
+            }
+          : note
+      )
+    )
+
+    // Debounce saving to disk
+    if (noteDebounceRef.current) {
+      clearTimeout(noteDebounceRef.current)
+    }
+
+    noteDebounceRef.current = setTimeout(async () => {
+      try {
+        if (window.api && typeof window.api.updateNote === 'function') {
+          await window.api.updateNote(update)
+        } else {
+          // Local fallback
+          setNotes((currentNotes) => {
+            localStorage.setItem(LOCAL_STORAGE_NOTES_KEY, JSON.stringify(currentNotes))
+            return currentNotes
+          })
+        }
+      } catch (err) {
+        console.error('Failed to save note update:', err)
+      }
+    }, 350)
+  }, [])
+
+  const handleDeleteNote = async (id) => {
+    try {
+      if (window.api && typeof window.api.deleteNote === 'function') {
+        const updated = await window.api.deleteNote(id)
+        setNotes(updated)
+        if (activeNoteId === id) {
+          setActiveNoteId(updated.length > 0 ? updated[0].id : null)
+        }
+      } else {
+        const updated = notes.filter((n) => n.id !== id)
+        setNotes(updated)
+        if (activeNoteId === id) {
+          setActiveNoteId(updated.length > 0 ? updated[0].id : null)
+        }
+        localStorage.setItem(LOCAL_STORAGE_NOTES_KEY, JSON.stringify(updated))
+      }
+    } catch (err) {
+      console.error('Failed to delete note:', err)
+    }
+  }
+
+  const handleExportNote = async (note) => {
+    try {
+      if (window.api && typeof window.api.exportNote === 'function') {
+        return await window.api.exportNote(note)
+      }
+      return { success: false, reason: 'Export API unavailable' }
+    } catch (err) {
+      console.error('Failed to export note:', err)
+      return { success: false, error: err.message }
+    }
+  }
+
   const pendingCount = tasks.filter((t) => !t.completed).length
 
-  // Live sidebar focus badge (displays MM:SS while active, or mode duration)
+  // Live sidebar focus badge
   const focusBadge =
     timer.status === 'running'
       ? timer.formattedTime
@@ -157,6 +283,7 @@ export default function App() {
         onSelectTab={setActiveTab}
         pendingTasksCount={pendingCount}
         focusBadge={focusBadge}
+        notesCount={notes.length}
       />
 
       <main className="main-wrapper">
@@ -223,72 +350,18 @@ export default function App() {
             </div>
           )}
 
-          {/* Upcoming Section View (Notes) */}
-          {activeTab !== 'overview' && activeTab !== 'tasks' && activeTab !== 'focus' && (
-            <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: 'var(--accent-primary-soft)',
-                  color: 'var(--accent-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px'
-                }}
-              >
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-              </div>
-              <h2
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  marginBottom: 8
-                }}
-              >
-                {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
-              </h2>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: 'var(--text-secondary)',
-                  maxWidth: 420,
-                  margin: '0 auto 20px'
-                }}
-              >
-                This section is part of upcoming milestones. You can explore the Pomodoro timer in
-                the Overview or Focus tab.
-              </p>
-              <button
-                type="button"
-                className="btn-primary"
-                style={{
-                  maxWidth: 160,
-                  margin: '0 auto',
-                  background: 'var(--accent-primary)',
-                  color: '#fff',
-                  cursor: 'pointer'
-                }}
-                onClick={() => setActiveTab('overview')}
-              >
-                Back to Overview
-              </button>
+          {/* Dedicated Notes View */}
+          {activeTab === 'notes' && (
+            <div style={{ width: '100%', height: 'calc(100vh - 120px)', minHeight: 480 }}>
+              <NotesView
+                notes={notes}
+                activeNoteId={activeNoteId}
+                onSelectNote={setActiveNoteId}
+                onCreateNote={handleCreateNote}
+                onUpdateNote={handleUpdateNote}
+                onDeleteNote={handleDeleteNote}
+                onExportNote={handleExportNote}
+              />
             </div>
           )}
         </div>
