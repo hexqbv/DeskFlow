@@ -1,8 +1,15 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, Notification } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { loadTasks, saveTasks, addTask, toggleTask, deleteTask, getStorageInfo } from './taskStore'
+import {
+  loadTasks,
+  saveTasks,
+  addTask,
+  toggleTask,
+  deleteTask,
+  getStorageInfo
+} from './taskStore'
 
 function createWindow() {
   // Create the browser window.
@@ -78,6 +85,57 @@ app.whenReady().then(() => {
     return getStorageInfo()
   })
 
+  // Native Notification IPC Handler
+  ipcMain.handle('notify:show', (_, options) => {
+    if (!options || typeof options !== 'object') {
+      return { success: false, error: 'Invalid notification options' }
+    }
+
+    const title =
+      typeof options.title === 'string' && options.title.trim().length > 0
+        ? options.title.trim().slice(0, 100)
+        : 'DeskFlow Focus'
+    const body = typeof options.body === 'string' ? options.body.trim().slice(0, 300) : ''
+
+    if (Notification.isSupported()) {
+      new Notification({
+        title,
+        body,
+        silent: false,
+        ...(process.platform === 'linux' ? { icon } : {})
+      }).show()
+      return { success: true }
+    }
+    return { success: false, reason: 'Notifications not supported on platform' }
+  })
+
+  // Native Notification IPC Handler
+  ipcMain.handle('notify:show', (_, options) => {
+    if (!options || typeof options !== 'object') {
+      return { success: false, error: 'Invalid notification options' }
+    }
+
+    const title =
+      typeof options.title === 'string' && options.title.trim().length > 0
+        ? options.title.trim().slice(0, 100)
+        : 'DeskFlow Focus'
+    const body =
+      typeof options.body === 'string'
+        ? options.body.trim().slice(0, 300)
+        : ''
+
+    if (Notification.isSupported()) {
+      new Notification({
+        title,
+        body,
+        silent: false,
+        ...(process.platform === 'linux' ? { icon } : {})
+      }).show()
+      return { success: true }
+    }
+    return { success: false, reason: 'Notifications not supported on platform' }
+  })
+
   createWindow()
 
   app.on('activate', function () {
@@ -95,3 +153,4 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+

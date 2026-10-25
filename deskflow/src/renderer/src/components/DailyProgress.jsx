@@ -1,10 +1,16 @@
 /* eslint-disable react/prop-types */
-export default function DailyProgress({ tasks = [] }) {
+export default function DailyProgress({ tasks = [], completedFocusSessions = 0 }) {
   const totalTasks = tasks.length
   const completedTasks = tasks.filter((t) => t.completed).length
 
-  // Calculate percentage dynamically based on task completion
-  const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+  // Calculate percentage dynamically based on task completion and focus goals (target: 4 sessions)
+  const taskRatio = totalTasks > 0 ? completedTasks / totalTasks : 0
+  const focusRatio = Math.min(1, completedFocusSessions / 4)
+  const combinedRatio = totalTasks > 0 ? (taskRatio + focusRatio) / 2 : focusRatio
+  const progressPercent = Math.round(combinedRatio * 100)
+
+  // Real focused minutes (each standard Pomodoro is 25 minutes)
+  const focusMinutes = completedFocusSessions * 25
 
   return (
     <div className="card progress-card">
@@ -24,7 +30,7 @@ export default function DailyProgress({ tasks = [] }) {
           <span className="card-title">Daily Progress</span>
         </div>
         <span className="card-tag">
-          {totalTasks === 0 ? '0% Started' : `${progressPercent}% Achieved`}
+          {progressPercent === 0 ? '0% Started' : `${progressPercent}% Achieved`}
         </span>
       </div>
 
@@ -37,8 +43,8 @@ export default function DailyProgress({ tasks = [] }) {
       <div className="progress-stats-grid">
         <div className="stat-box">
           <span className="stat-label">Focus</span>
-          <span className="stat-value">50m</span>
-          <span className="stat-subtext">Goal: 120m</span>
+          <span className="stat-value">{focusMinutes}m</span>
+          <span className="stat-subtext">{completedFocusSessions} / 4 sessions</span>
         </div>
         <div className="stat-box">
           <span className="stat-label">Tasks</span>

@@ -4,6 +4,8 @@ import Header from './components/Header'
 import FocusTimerPreview from './components/FocusTimerPreview'
 import DailyProgress from './components/DailyProgress'
 import TaskOverview from './components/TaskOverview'
+import FocusView from './components/FocusView'
+import { usePomodoro } from './hooks/usePomodoro'
 
 const LOCAL_STORAGE_KEY = 'deskflow_tasks_fallback'
 
@@ -11,6 +13,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('overview')
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Initialize shared Pomodoro timer
+  const timer = usePomodoro()
 
   // Load tasks on mount
   useEffect(() => {
@@ -129,19 +134,61 @@ export default function App() {
 
   const pendingCount = tasks.filter((t) => !t.completed).length
 
+  // Live sidebar focus badge (displays MM:SS while active, or mode duration)
+  const focusBadge =
+    timer.status === 'running'
+      ? timer.formattedTime
+      : timer.mode === 'focus'
+        ? timer.devFastMode
+          ? '10s'
+          : '25m'
+        : timer.mode === 'shortBreak'
+          ? timer.devFastMode
+            ? '5s'
+            : '5m'
+          : timer.devFastMode
+            ? '8s'
+            : '15m'
+
   return (
     <div className="app-container">
-      <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} pendingTasksCount={pendingCount} />
+      <Sidebar
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        pendingTasksCount={pendingCount}
+        focusBadge={focusBadge}
+      />
 
       <main className="main-wrapper">
         <div className="main-content">
           <Header />
 
+          {/* Overview Dashboard View */}
           {activeTab === 'overview' && (
             <div className="dashboard-grid">
               <div className="column-left">
-                <FocusTimerPreview />
-                <DailyProgress tasks={tasks} />
+                <FocusTimerPreview
+                  mode={timer.mode}
+                  status={timer.status}
+                  formattedTime={timer.formattedTime}
+                  progressPercent={timer.progressPercent}
+                  completedFocusSessions={timer.completedFocusSessions}
+                  currentCycleSession={timer.currentCycleSession}
+                  pendingTransition={timer.pendingTransition}
+                  devFastMode={timer.devFastMode}
+                  onStart={timer.startTimer}
+                  onPause={timer.pauseTimer}
+                  onResume={timer.resumeTimer}
+                  onReset={timer.resetTimer}
+                  onSwitchMode={timer.switchMode}
+                  onAcceptTransition={timer.acceptTransition}
+                  onDismissTransition={timer.dismissTransition}
+                  onToggleDevFastMode={timer.toggleDevFastMode}
+                />
+                <DailyProgress
+                  tasks={tasks}
+                  completedFocusSessions={timer.completedFocusSessions}
+                />
               </div>
 
               <div className="column-right">
@@ -156,6 +203,7 @@ export default function App() {
             </div>
           )}
 
+          {/* Dedicated Tasks View */}
           {activeTab === 'tasks' && (
             <div style={{ maxWidth: 880, width: '100%', margin: '0 auto' }}>
               <TaskOverview
@@ -168,7 +216,15 @@ export default function App() {
             </div>
           )}
 
-          {activeTab !== 'overview' && activeTab !== 'tasks' && (
+          {/* Dedicated Focus View */}
+          {activeTab === 'focus' && (
+            <div style={{ maxWidth: 880, width: '100%', margin: '0 auto' }}>
+              <FocusView timer={timer} tasks={tasks} onToggleTask={handleToggleTask} />
+            </div>
+          )}
+
+          {/* Upcoming Section View (Notes) */}
+          {activeTab !== 'overview' && activeTab !== 'tasks' && activeTab !== 'focus' && (
             <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
               <div
                 style={{
@@ -216,8 +272,8 @@ export default function App() {
                   margin: '0 auto 20px'
                 }}
               >
-                This section is part of upcoming milestones. You can manage tasks in the Overview or
-                Tasks tab.
+                This section is part of upcoming milestones. You can explore the Pomodoro timer in
+                the Overview or Focus tab.
               </p>
               <button
                 type="button"
