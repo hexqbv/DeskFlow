@@ -1,42 +1,95 @@
-appId: com.electron.app
-productName: deskflow
+appId: com.deskflow.app
+productName: DeskFlow
+
 directories:
   buildResources: build
+
+# Files included in the package.
+# electron-builder starts with everything then applies these exclusions.
 files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!deskflow/resources/**'
+
+# The resources/ directory is extracted from the asar so Electron can load
+# native assets (icons, images) via plain filesystem paths at runtime.
 asarUnpack:
   - resources/**
+
+# ─── macOS ────────────────────────────────────────────────────────────────────
+mac:
+  # The .icns file electron-builder looks for in build/
+  icon: build/icon.icns
+  # Category shown in Launchpad / Spotlight
+  category: public.app-category.productivity
+  # Only target the machine's architecture (Apple Silicon).
+  # Change to "universal" to produce a fat binary supporting both arm64 + x64.
+  target:
+    - target: dmg
+      arch:
+        - arm64
+    - target: dir
+      arch:
+        - arm64
+  # Entitlements for Hardened Runtime (required for notarization later)
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # NSUsageDescription entries shown in macOS permission dialogs
+  extendInfo:
+    NSCameraUsageDescription: DeskFlow does not use the camera.
+    NSMicrophoneUsageDescription: DeskFlow does not use the microphone.
+    NSDocumentsFolderUsageDescription: DeskFlow needs access to save exported notes.
+    NSDownloadsFolderUsageDescription: DeskFlow needs access to save exported notes.
+  # Set to false for local builds (no Apple Developer credentials needed).
+  # Switch to true and configure APPLE_ID/APPLE_TEAM_ID env vars for distribution.
+  notarize: false
+
+# ─── DMG ──────────────────────────────────────────────────────────────────────
+dmg:
+  artifactName: DeskFlow-${version}-mac-${arch}.${ext}
+  # Window dimensions for the installer dialog
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 140
+      y: 200
+      type: file
+    - x: 400
+      y: 200
+      type: link
+      path: /Applications
+
+# ─── Windows (kept for cross-platform future use) ─────────────────────────────
 win:
-  executableName: deskflow
+  executableName: DeskFlow
+  icon: build/icon.ico
+
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  artifactName: DeskFlow-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-mac:
-  entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
-  notarize: false
-dmg:
-  artifactName: ${name}-${version}.${ext}
+
+# ─── Linux (kept for cross-platform future use) ───────────────────────────────
 linux:
   target:
     - AppImage
-    - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: deskflow
   category: Utility
+
 appImage:
-  artifactName: ${name}-${version}.${ext}
+  artifactName: DeskFlow-${version}.${ext}
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
 npmRebuild: false
+
+# Set to false to disable auto-update checking entirely.
+# Remove or update this block when you have a real update server.
 publish:
   provider: generic
   url: https://example.com/auto-updates

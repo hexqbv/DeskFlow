@@ -338,4 +338,3 @@ app.on('will-quit', () => {
   // Ensure shortcuts are released even if before-quit wasn't fired
   unregisterGlobalShortcuts()
 })
-
