@@ -327,3 +327,15 @@ app.on('will-quit', () => {
   // Ensure shortcuts are released even if before-quit wasn't fired
   unregisterGlobalShortcuts()
 })
+
+app.on('before-quit', () => {
+  // Mark as quitting so the 'close' handler lets the window actually close
+  app.isQuitting = true
+  unregisterGlobalShortcuts()
+})
+
+app.on('will-quit', () => {
+  // Ensure shortcuts are released even if before-quit wasn't fired
+  unregisterGlobalShortcuts()
+})
+
