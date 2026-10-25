@@ -6,6 +6,8 @@ import DailyProgress from './components/DailyProgress'
 import TaskOverview from './components/TaskOverview'
 import FocusView from './components/FocusView'
 import NotesView from './components/NotesView'
+import QuickNoteOverlay from './components/QuickNoteOverlay'
+import KeyboardShortcutsInfo from './components/KeyboardShortcutsInfo'
 import { usePomodoro } from './hooks/usePomodoro'
 
 const LOCAL_STORAGE_TASKS_KEY = 'deskflow_tasks_fallback'
@@ -17,6 +19,7 @@ export default function App() {
   const [notes, setNotes] = useState([])
   const [activeNoteId, setActiveNoteId] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isQuickNoteOpen, setIsQuickNoteOpen] = useState(false)
 
   // Initialize shared Pomodoro timer
   const timer = usePomodoro()
@@ -100,6 +103,28 @@ export default function App() {
 
     return () => {
       isMounted = false
+    }
+  }, [])
+
+  // ================= M5: IPC LISTENERS (main → renderer) =================
+  useEffect(() => {
+    // Main process sends 'open-quick-note' when the tray menu or global
+    // shortcut Cmd+Shift+N is triggered.
+    if (window.api?.onOpenQuickNote) {
+      window.api.onOpenQuickNote(() => setIsQuickNoteOpen(true))
+    }
+
+    // Main process sends 'navigate-to-tab' with a tab name when the tray
+    // menu or global shortcut navigates to a specific section.
+    if (window.api?.onNavigateToTab) {
+      window.api.onNavigateToTab((tab) => {
+        setActiveTab(tab)
+      })
+    }
+
+    return () => {
+      window.api?.removeOpenQuickNoteListener?.()
+      window.api?.removeNavigateToTabListener?.()
     }
   }, [])
 
@@ -258,6 +283,19 @@ export default function App() {
     }
   }
 
+  // ================= QUICK NOTE HANDLER =================
+  const handleQuickNoteSaved = useCallback((newNote, allNotes) => {
+    if (allNotes) {
+      // Full list returned from the main process — use it as the source of truth
+      setNotes(allNotes)
+    } else {
+      // Fallback (browser dev mode): prepend the new note
+      setNotes((prev) => [newNote, ...prev])
+    }
+    setActiveNoteId(newNote.id)
+    setIsQuickNoteOpen(false)
+  }, [])
+
   const pendingCount = tasks.filter((t) => !t.completed).length
 
   // Live sidebar focus badge
@@ -316,6 +354,7 @@ export default function App() {
                   tasks={tasks}
                   completedFocusSessions={timer.completedFocusSessions}
                 />
+                <KeyboardShortcutsInfo />
               </div>
 
               <div className="column-right">
@@ -366,6 +405,11 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {/* M5: Quick Note overlay — rendered on top of all content */}
+      {isQuickNoteOpen && (
+        <QuickNoteOverlay onSave={handleQuickNoteSaved} onClose={() => setIsQuickNoteOpen(false)} />
+      )}
     </div>
   )
 }

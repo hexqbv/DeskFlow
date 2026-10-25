@@ -216,4 +216,3 @@ export async function exportNoteToMarkdown(win, note) {
     return { success: false, error: err.message }
   }
 }
-

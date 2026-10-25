@@ -1771,3 +1771,311 @@ body {
   font-size: 13px;
   color: var(--text-secondary);
 }
+
+/* ==========================================================================
+   M5: Quick Note Overlay
+   ========================================================================== */
+
+.qno-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: qno-fade-in 0.15s ease;
+}
+
+@keyframes qno-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.qno-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    0 4px 16px rgba(0, 0, 0, 0.35);
+  width: 100%;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: qno-slide-up 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes qno-slide-up {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Header */
+.qno-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.qno-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qno-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.qno-title-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.qno-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+  line-height: 1;
+}
+
+.qno-close-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-hover);
+}
+
+/* Title input */
+.qno-title-input {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  outline: none;
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.qno-title-input::placeholder {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.qno-title-input:focus {
+  border-bottom-color: var(--accent-primary);
+}
+
+.qno-title-input:disabled {
+  opacity: 0.5;
+}
+
+/* Content textarea */
+.qno-content-area {
+  background: none;
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  resize: none;
+  box-sizing: border-box;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  min-height: 160px;
+}
+
+.qno-content-area::placeholder {
+  color: var(--text-dim);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 13px;
+}
+
+.qno-content-area:disabled {
+  opacity: 0.5;
+}
+
+/* Error */
+.qno-error {
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.08);
+  border-top: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+/* Footer */
+.qno-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.qno-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.qno-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-default);
+  font-size: 10.5px;
+  font-family: inherit;
+  color: var(--text-secondary);
+}
+
+.qno-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qno-btn {
+  padding: 7px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    background-color 0.15s,
+    color 0.15s,
+    opacity 0.15s;
+  white-space: nowrap;
+}
+
+.qno-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.qno-btn-secondary {
+  background-color: var(--bg-surface-elevated);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.qno-btn-secondary:hover:not(:disabled) {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.qno-btn-primary {
+  background-color: var(--accent-primary);
+  color: #fff;
+}
+
+.qno-btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-primary-hover);
+}
+
+/* ==========================================================================
+   M5: Keyboard Shortcuts Info card
+   ========================================================================== */
+
+.shortcuts-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.shortcuts-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.shortcuts-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.shortcuts-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.shortcuts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shortcuts-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shortcuts-kbd {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-default);
+  font-size: 11px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 88px;
+  text-align: center;
+}
+
+.shortcuts-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.shortcuts-note {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
